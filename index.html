@@ -53,6 +53,17 @@
         <p>只填页面上的数字，算价交给引擎</p>
       </div>
 
+      <div class="find">
+        <div class="find-box">
+          <svg class="fi" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.6"/><path d="M13.2 13.2 17 17"/></svg>
+          <input id="findInput" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="搜商品名 / 规格 / 粘贴商品链接，模糊匹配">
+          <kbd class="fkbd">/</kbd>
+        </div>
+        <div class="find-res" id="findRes" hidden></div>
+        <p class="find-tip">填得越全越准：商品名 + 规格 + 链接一起搜，命中字段越多排得越前</p>
+      </div>
+
       <div class="prodbar" id="productBar"></div>
 
       <div class="prod-fields">
@@ -61,8 +72,8 @@
           <input id="prodName" placeholder="例：小米 15 Ultra 16+512 黑色" autocomplete="off">
         </div>
         <div class="f">
-          <label for="prodSpec">规格 / 型号</label>
-          <input id="prodSpec" placeholder="选填，例：国行 512GB" autocomplete="off">
+          <label for="prodSpec">型号 / 规格 <span class="u">可留空</span></label>
+          <input id="prodSpec" placeholder="例：国行 512GB · 黑色" autocomplete="off">
         </div>
       </div>
 
@@ -74,7 +85,7 @@
       </div>
 
       <p class="hint-line">
-        提示：页面价填<b>活动价</b>（不是划线原价）；会员价填上后<b>会覆盖</b>页面价，不再重复打折。
+        每个平台最多挂 <b>5 条链接</b>，各自算到手价、平台取最低；优惠券与红包按平台填一次即可。
       </p>
     </aside>
 
@@ -210,5 +221,6 @@
 <script src="data.js"></script>
 <script src="gh-sync.js"></script>
 <script src="app.js"></script>
+<div class="toast" id="toast" hidden></div>
 </body>
 </html>
