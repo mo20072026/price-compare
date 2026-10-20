@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>全网到手价 · 多平台比价计算器（会员价/红包/优惠券/一淘/淘金币/联盟）</title>
+<meta name="description" content="输入各平台页面价与优惠，按真实叠券规则计算到手价：会员价、跨店满减、店铺券、红包、直播间红包、淘金币、一淘返利、淘宝联盟佣金、国补、支付立减。给出每一项优惠的领取路径与踩坑提示。">
+<meta name="theme-color" content="#f4502a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23f4502a'/%3E%3Cpath d='M12 5.2 14 9.6l4.8.5-3.6 3.2 1 4.7-4.2-2.4-4.2 2.4 1-4.7L5.2 10l4.8-.5z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tb-in">
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><path d="M12 4.4 14.2 9l5.1.6-3.8 3.4 1.1 5-4.6-2.6-4.6 2.6 1.1-5L4.7 9.6 9.8 9z"/></svg>
+      </div>
+      <div class="brand-txt">
+        <h1>全网到手价</h1>
+        <p>会员价 · 券 · 红包 · 淘金币 · 返利，一次算清</p>
+      </div>
+    </div>
+
+    <div class="tb-actions">
+      <span class="sync" id="syncPill">
+        <span class="dot" id="ghStatusDot"></span>
+        <span id="ghStatus">本地就绪</span>
+        <span id="syncAgo"></span>
+        <button class="btn ghost xs" data-gh="push" id="syncRetry" hidden>重试</button>
+      </span>
+      <button class="btn ghost" id="btnSample" title="载入一份填好的示例，看清各字段怎么填">示例</button>
+      <button class="btn ghost" id="btnClear" title="清空当前商品的所有报价">清空</button>
+      <button class="btn ghost" id="btnPrint" title="打印或导出 PDF">打印 / PDF</button>
+      <button class="btn primary" id="btnSync">跨设备同步</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ 结论条 ============ -->
+  <section class="verdict" id="verdict" aria-live="polite"></section>
+
+  <div class="layout">
+
+    <!-- ============ 左：录入 ============ -->
+    <aside class="panel col-input">
+      <div class="panel-h">
+        <h2>平台报价</h2>
+        <p>只填页面上的数字，算价交给引擎</p>
+      </div>
+
+      <div class="prodbar" id="productBar"></div>
+
+      <div class="prod-fields">
+        <div class="f">
+          <label for="prodName">商品</label>
+          <input id="prodName" placeholder="例：小米 15 Ultra 16+512 黑色" autocomplete="off">
+        </div>
+        <div class="f">
+          <label for="prodSpec">规格 / 型号</label>
+          <input id="prodSpec" placeholder="选填，例：国行 512GB" autocomplete="off">
+        </div>
+      </div>
+
+      <div id="cards" class="cards"></div>
+
+      <div class="plat-add">
+        <span>未比价的平台</span>
+        <div id="addPlat" class="chips"></div>
+      </div>
+
+      <p class="hint-line">
+        提示：页面价填<b>活动价</b>（不是划线原价）；会员价填上后<b>会覆盖</b>页面价，不再重复打折。
+      </p>
+    </aside>
+
+    <!-- ============ 右：结果 ============ -->
+    <section class="panel col-result">
+      <div class="panel-h">
+        <h2>比价结果</h2>
+        <div class="ph-right">
+          <span class="mini-note" id="calcHint"></span>
+        </div>
+      </div>
+
+      <div id="rank"></div>
+
+      <div class="detail-grid">
+        <div class="detail-col">
+          <div class="sub-h">
+            <h3>到手价拆解</h3>
+            <span class="mini-note" id="stackFor"></span>
+          </div>
+          <div id="stack"></div>
+        </div>
+        <div class="detail-col">
+          <div class="sub-h">
+            <h3>怎么买才能拿到这个价</h3>
+            <span class="mini-note">按顺序做，别跳步</span>
+          </div>
+          <div id="path"></div>
+        </div>
+      </div>
+
+      <details class="caliber">
+        <summary>计算口径（为什么这样算）</summary>
+        <ul>
+          <li><b>门槛按活动价判定</b>：满减、满减券的门槛一律用折前活动价比，不是减完的价——这是平台真实规则。</li>
+          <li><b>同类型券只算一张</b>：店铺券、平台/跨店满减、品类券、直播间券各取最优一张，符合"一单一张店铺券"的限制。</li>
+          <li><b>返利是事后返还</b>：一淘 / 联盟 / 多多进宝 按<b>实付</b>乘比例，确认收货后才到账（集分宝 / 佣金），所以计入到手价但不减少当下付款。</li>
+          <li><b>返利渠道互斥</b>：一淘、淘宝联盟同属淘客链路，同一订单只能走一条，所以做成单选。</li>
+          <li><b>会员成本摊入</b>：月卡 / 年费摊销填了就从到手价里加回去，避免"为了省 20 元办 88 元会员"。</li>
+          <li><b>不计入</b>：分期免息、赠品估值、晒单返现（金额不确定），这些不能当降价看。</li>
+        </ul>
+      </details>
+    </section>
+  </div>
+
+  <!-- ============ 优惠攻略 ============ -->
+  <section class="panel guide">
+    <div class="panel-h">
+      <h2>优惠怎么拿</h2>
+      <p>每个平台的钱藏在哪、入口在哪、哪里会踩坑</p>
+    </div>
+    <div class="gtabs" id="guideTabs"></div>
+    <div class="gbody" id="guideBody"></div>
+
+    <div class="order-block">
+      <h3>通用铁律：叠优惠的正确顺序</h3>
+      <ol class="order-list">
+        <li><b>先办卡</b> — 88VIP / PLUS / 省钱月卡 / SUPER 会员先开通，价格档位和券量都跟着变。</li>
+        <li><b>再领券</b> — 店铺券 + 平台券（跨店满减）先领进券包，不领就永远不自动减。</li>
+        <li><b>再领红包</b> — 平台超级红包、直播间红包，通常可与券叠加。</li>
+        <li><b>从返利入口进</b> — 想拿一淘 / 联盟返利，必须<b>先</b>在返利 App 里搜到同款再进商品页下单；先在淘宝加购再跳过去，很可能丢返利。</li>
+        <li><b>下单时勾抵扣</b> — 淘金币 / 京豆要在提交订单页手动勾选，默认常常不勾。</li>
+        <li><b>选对支付方式</b> — 花呗 / 白条 / 银行卡 / 云闪付 立减在支付页才显示，换一张卡可能差几十。</li>
+        <li><b>收货后领返利</b> — 集分宝 / 佣金在确认收货后结算，别忘了看是否到账。</li>
+        <li><b>买完盯价保</b> — 京东 7~30 天、淘宝部分商品支持价保，降价了去申请退差。</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p>本工具不抓取任何平台数据，价格与优惠由你手动填写；计算结果为规则推演，实际以平台结算页为准。</p>
+    <p class="foot-meta">全网到手价 · 本地存储 · <span id="verLine">v1.0</span></p>
+  </footer>
+</main>
+
+<!-- ============ 同步弹窗 ============ -->
+<div class="modal" id="syncModal" hidden>
+  <div class="modal-mask" data-close="1"></div>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="跨设备同步">
+    <div class="modal-h">
+      <h3>跨设备同步</h3>
+      <button class="btn ghost xs" data-close="1">关闭</button>
+    </div>
+    <div class="modal-b">
+      <p class="muted">
+        填<b>同一个</b> Token，手机和电脑就自动同步；页面会在你账号下自动找到 / 创建私有 Gist 备份文件。
+        数据不经过第三方服务器，Token 只存在这台设备的浏览器里。
+      </p>
+
+      <div class="f">
+        <label for="ghToken">GitHub Token（只勾 gist 权限）</label>
+        <input type="password" id="ghToken" autocomplete="off" spellcheck="false" placeholder="ghp_… 或 github_pat_…">
+      </div>
+
+      <div class="row">
+        <button class="btn dark" data-gh="push">上传</button>
+        <button class="btn ghost" data-gh="pull">从云端拉取</button>
+        <button class="btn ghost" data-gh="test">验证 Token</button>
+        <button class="btn ghost" data-gh="diag">同步自检</button>
+        <button class="btn ghost" data-gh="unify">统一备份文件</button>
+      </div>
+
+      <div id="ghBox" class="ghbox"></div>
+
+      <details class="adv">
+        <summary>高级：指定 Gist / 用同步码换设备</summary>
+        <div class="f" style="margin-top:10px">
+          <label for="ghGist">Gist ID（留空自动查找）</label>
+          <input id="ghGist" autocomplete="off" spellcheck="false" placeholder="https://gist.github.com/用户名/6a1b2c3d…">
+        </div>
+        <div class="f" style="margin-top:10px">
+          <label for="ghCode">同步码 / 同步链接（新设备粘贴回车即可接入）</label>
+          <input id="ghCode" autocomplete="off" spellcheck="false" placeholder="ENSYNC1.… 或 ?sync=…">
+        </div>
+        <div class="row">
+          <button class="btn dark" data-gh="copyCode">复制同步码</button>
+          <button class="btn ghost" data-gh="copyLink">复制同步链接</button>
+          <button class="btn ghost" data-gh="importCode">用同步码接入</button>
+          <button class="btn ghost" data-gh="forget">忘记此设备</button>
+        </div>
+      </details>
+
+      <label class="auto-line"><input type="checkbox" id="ghAuto"> 自动同步（切回页面 / 修改后 2.5 秒 / 每 60 秒）</label>
+
+      <p class="muted tiny">
+        Token 生成页：<a href="https://github.com/settings/tokens/new?scopes=gist" target="_blank" rel="noopener">github.com/settings/tokens/new</a>（勾选 <code>gist</code>）。
+        不填也能用，数据只存在本机浏览器。
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="gh-sync.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
