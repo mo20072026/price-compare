@@ -31,6 +31,7 @@
         <span id="syncAgo"></span>
         <button class="btn ghost xs" data-gh="push" id="syncRetry" hidden>重试</button>
       </span>
+      <button class="btn ghost" id="btnImport" title="粘贴比价技能的 JSON 输出或抓价码，批量建商品">批量导入</button>
       <button class="btn ghost" id="btnSample" title="载入一份填好的示例，看清各字段怎么填">示例</button>
       <button class="btn ghost" id="btnClear" title="清空当前商品的所有报价">清空</button>
       <button class="btn ghost" id="btnPrint" title="打印或导出 PDF">打印 / PDF</button>
@@ -205,6 +206,37 @@
       <p class="muted tiny">
         Token 生成页：<a href="https://github.com/settings/tokens/new?scopes=gist" target="_blank" rel="noopener">github.com/settings/tokens/new</a>（勾选 <code>gist</code>）。
         不填也能用，数据只存在本机浏览器。
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 批量导入弹窗 ============ -->
+<div class="modal" id="importModal" hidden>
+  <div class="modal-mask" data-close="1"></div>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="批量导入">
+    <div class="modal-h">
+      <h3>批量导入 · 把抓到的真实价一次带进来</h3>
+      <button class="btn ghost xs" data-close="1">关闭</button>
+    </div>
+    <div class="modal-b">
+      <p class="muted">
+        支持三种内容，可混在一起粘贴：<br>
+        ① 比价技能的 <code>--json</code> 输出（含 商品名 / 价格 / 链接）<br>
+        ② 技能的 <code>--grab</code> 抓价码行（<code>DJ1.…</code>，每行一条）<br>
+        ③ 普通行：<code>¥179 罗技 G304 无线鼠标 https://item.jd.com/1000.html</code>
+      </p>
+      <div class="imp-cmd">
+        <code>C:\Users\DELL\.workbuddy\binaries\python\envs\default\Scripts\python.exe price_compare.py "无线鼠标" --platforms suning --limit 5 --json</code>
+      </div>
+      <textarea id="impText" spellcheck="false" placeholder="把技能的 JSON 输出，或抓价码行粘到这里…"></textarea>
+      <div class="row">
+        <button class="btn dark" id="impNew">每件商品建一个</button>
+        <button class="btn ghost" id="impCur">加到当前商品</button>
+      </div>
+      <p class="muted tiny">
+        「加到当前商品」按链接域名自动归到对应平台，每平台仍限 5 条；重复链接自动跳过。
+        价格为<b>平台售价</b>，券 / 红包 / 返利仍由本站按规则叠算。
       </p>
     </div>
   </div>

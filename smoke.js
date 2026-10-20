@@ -166,6 +166,45 @@ setTimeout(() => {
   const newChip = [...d.querySelectorAll('.price-chip')].find(c => c.textContent.includes('3399'));
   ok(newChip, '价格 ¥3399 已自动填入（不用手算手填）');
 
+  console.log('\n— 批量导入（技能 --json 桥接）—');
+  click(d.querySelector('#btnImport'));
+  ok(!d.querySelector('#importModal').hidden, '打开批量导入弹窗');
+  const chipsBefore = d.querySelectorAll('.pchip').length;
+  const impJson = JSON.stringify({
+    keyword: '无线鼠标',
+    results: {
+      '苏宁易购': [{ title: '罗技(Logitech)M330 无线鼠标', price: 109.0, url: 'https://product.suning.com/0000000000/12411611206.html' }],
+      '京东': [{ title: '罗技 M330 静音无线鼠标', price: 129, url: 'https://item.jd.com/1234567.html' }]
+    }
+  });
+  input(d.querySelector('#impText'), impJson);
+  click(d.querySelector('#impNew'));
+  ok(d.querySelectorAll('.pchip').length === chipsBefore + 2, 'JSON 里 2 条商品各建一个（' + chipsBefore + ' → ' + d.querySelectorAll('.pchip').length + '）');
+  ok(d.querySelector('#prodName').value.includes('M330'), '切到导入的第一个商品');
+  ok([...d.querySelectorAll('.lurl')].some(i => i.value.includes('12411611206')), '苏宁链接已写入');
+  ok([...d.querySelectorAll('.price-chip')].some(c => c.textContent.includes('109')), '价格 109 已自动填入');
+  ok(d.querySelector('#importModal').hidden, '导入成功后自动关闭弹窗');
+
+  const curCardLinks = () => d.querySelectorAll('[data-card="suning"] .lrow').length;
+  const linksBefore = curCardLinks();
+  const djItem = { t: '罗技 M330 无线鼠标 第二家', p: '99.5', u: 'https://product.suning.com/0070977076/12448074920.html' };
+  const djStr = 'DJ1.' + Buffer.from(JSON.stringify(djItem), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  click(d.querySelector('#btnImport'));
+  input(d.querySelector('#impText'), djStr + '    # ¥99.50 罗技 M330 第二条');
+  click(d.querySelector('#impCur'));
+  ok(curCardLinks() === linksBefore + 1, '抓价码行（带注释）加到当前商品');
+  ok([...d.querySelectorAll('.price-chip')].some(c => c.textContent.includes('99.5')), '抓到 99.5 写入价格标签');
+
+  click(d.querySelector('#btnImport'));
+  input(d.querySelector('#impText'), impJson);
+  click(d.querySelector('#impNew'));
+  ok(d.querySelector('#toast').textContent.includes('重复'), '重复链接自动跳过（' + d.querySelector('#toast').textContent + '）');
+
+  click(d.querySelector('#btnImport'));
+  input(d.querySelector('#impText'), '¥199 测试用普通行商品 https://item.jd.com/999888.html');
+  click(d.querySelector('#impNew'));
+  ok(d.querySelector('#prodName').value.includes('测试用普通行商品'), '普通文本行「¥价格 标题 链接」也能导入');
+
   console.log('\n— 攻略与运行时 —');
   ok(d.querySelectorAll('.gitem').length > 5, '攻略渲染正常');
   ok(d.querySelectorAll('.gtab').length === 8, '8 个平台 tab');

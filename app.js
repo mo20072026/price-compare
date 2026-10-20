@@ -1015,6 +1015,129 @@
   }
 
   /* ===================================================================
+     批量导入（比价技能 --json / 抓价码 / 普通文本行）
+     =================================================================== */
+  function normUrl(u) {
+    return String(u || '').trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .replace(/[?#].*$/, '')
+      .replace(/\/+$/, '')
+      .toLowerCase();
+  }
+  function platByName(name) {
+    var s = String(name || '');
+    for (var i = 0; i < PLATS.length; i++) if (s && s.indexOf(PLATS[i].name) >= 0) return PLATS[i].id;
+    return '';
+  }
+  function parseImport(text) {
+    var raw = String(text || '').trim(), out = [];
+    if (!raw) return out;
+
+    function push(it, platName) {
+      if (!it) return;
+      var u = it.url || it.u || it.link || it.href || '';
+      var t = it.title || it.t || it.name || it.goods_name || '';
+      var pv = (it.price != null) ? it.price : (it.p != null ? it.p : (it.salePrice != null ? it.salePrice : ''));
+      if (!u && !t) return;
+      out.push({ t: String(t), p: String(pv === null || pv === undefined ? '' : pv), u: String(u), plat: detectPlatform(u) || platByName(platName) });
+    }
+
+    /* ① JSON：技能 --json（{results:{平台:[...]}}）、数组、单对象 */
+    if (raw.charAt(0) === '{' || raw.charAt(0) === '[') {
+      try {
+        var o = JSON.parse(raw);
+        if (Array.isArray(o)) o.forEach(function (x) { push(x); });
+        else if (o && o.results) {
+          Object.keys(o.results).forEach(function (k) {
+            (o.results[k] || []).forEach(function (x) { push(x, k); });
+          });
+        } else push(o);
+        if (out.length) return out;
+      } catch (e) { /* 不是完整 JSON，落到逐行 */ }
+    }
+
+    /* ② 逐行：抓价码 / 「¥价格 标题 链接」 */
+    raw.split(/\r?\n/).forEach(function (line) {
+      var s = String(line).trim();
+      if (!s) return;
+      var dm = s.match(/DJ1\.[A-Za-z0-9\-_]+/);
+      if (dm) {
+        var g = decodeGrab(dm[0]);
+        if (g) out.push({ t: g.t || '', p: String(g.p || ''), u: g.u || '', plat: detectPlatform(g.u) });
+        return;
+      }
+      var um = s.match(/https?:\/\/[^\s，。）)]+/);
+      if (!um) return;
+      var url = um[0];
+      var pm = s.match(/[¥￥]\s*([\d.]+)/) || s.match(/\s([\d]+(?:\.\d+)?)\s/);
+      var title = s.replace(url, '').replace(/[¥￥]\s*[\d.]+/, '').replace(/\s+/g, ' ').trim();
+      out.push({ t: title, p: pm ? pm[1] : '', u: url, plat: detectPlatform(url) });
+    });
+    return out;
+  }
+
+  function doImport(mode) {
+    var ta = $('#impText');
+    var items = parseImport(ta ? ta.value : '');
+    if (!items.length) {
+      toast('没解析到内容：粘技能 --json 输出，或每行一个抓价码 /「¥价格 标题 链接」');
+      return;
+    }
+    var seen = {};
+    products().forEach(function (p) {
+      ((p.offers) || []).forEach(function (o) {
+        (o.links || []).forEach(function (l) { if (l.url) seen[normUrl(l.url)] = 1; });
+      });
+    });
+
+    var added = 0, dup = 0, over = 0, noPlat = 0, firstPid = '';
+
+    if (mode === 'new') {
+      items.forEach(function (it) {
+        var plat = it.plat || 'taobao';
+        var key = normUrl(it.u);
+        if (key && seen[key]) { dup++; return; }
+        var np = blankProduct(it.t || '导入商品', '');
+        var o = np.offers.filter(function (x) { return x.pid === plat; })[0];
+        if (o) { o.on = true; o.links = [{ url: it.u || '', price: it.p || '', memberPrice: '' }]; }
+        Store.set(np.id, np);
+        if (key) seen[key] = 1;
+        if (!firstPid) firstPid = np.id;
+        added++;
+      });
+      if (firstPid) { S.cur = firstPid; S.sel = ''; S.open = {}; }
+    } else {
+      var p = curProduct();
+      if (!p) { toast('先选一个商品，再用「加到当前商品」'); return; }
+      items.forEach(function (it) {
+        if (!it.plat) { noPlat++; return; }
+        var o = (p.offers || []).filter(function (x) { return x.pid === it.plat; })[0];
+        if (!o) { noPlat++; return; }
+        var key = normUrl(it.u);
+        if (key && seen[key]) { dup++; return; }
+        o.on = true;
+        var empty = (o.links || []).filter(function (l) { return !l.url; })[0];
+        if (empty) { empty.url = it.u; empty.price = it.p || ''; }
+        else if ((o.links || []).length < MAX_LINKS) { o.links.push({ url: it.u, price: it.p || '', memberPrice: '' }); }
+        else { over++; return; }
+        if (key) seen[key] = 1;
+        S.open[it.plat] = true;
+        added++;
+      });
+      saveProduct(p);
+    }
+
+    renderAll();
+    var skip = [];
+    if (dup) skip.push('重复 ' + dup);
+    if (over) skip.push('超 5 条 ' + over);
+    if (noPlat) skip.push('平台未识别 ' + noPlat);
+    toast('已导入 ' + added + ' 条' + (skip.length ? '（跳过：' + skip.join('、') + '）' : ''));
+    if (added) { var im = $('#importModal'); if (im) im.setAttribute('hidden', ''); if (ta) ta.value = ''; }
+  }
+
+  /* ===================================================================
      模糊检索（商品名 / 规格 / 链接）
      =================================================================== */
   function renderFindRes(q) {
@@ -1367,6 +1490,7 @@
     if (e.key === 'Escape') {
       if (popState) { closePricePop(); return; }
       var gm = $('#grabModal'); if (gm && !gm.hidden) { gm.setAttribute('hidden', ''); return; }
+      var im = $('#importModal'); if (im && !im.hidden) { im.setAttribute('hidden', ''); return; }
       var sm = $('#syncModal'); if (sm && !sm.hidden) { sm.setAttribute('hidden', ''); return; }
     }
     if (t.id === 'findInput') {
@@ -1549,6 +1673,9 @@
     if (t.closest('#btnPrint')) { window.print(); return; }
     if (t.closest('#btnSync')) { $('#syncModal').removeAttribute('hidden'); return; }
     if (t.closest('#btnGrab')) { $('#grabModal').removeAttribute('hidden'); return; }
+    if (t.closest('#btnImport')) { $('#importModal').removeAttribute('hidden'); return; }
+    if (t.closest('#impNew')) { doImport('new'); return; }
+    if (t.closest('#impCur')) { doImport('cur'); return; }
     if (t.closest('[data-close]')) {
       var m = t.closest('.modal');
       if (m) m.setAttribute('hidden', '');
