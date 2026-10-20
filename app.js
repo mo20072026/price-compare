@@ -76,6 +76,65 @@
     return m ? m[1] : '';
   }
 
+  /* ---------------- 抓价助手（书签脚本）与平台搜索 ---------------- */
+  var SEARCH_URL = {
+    taobao: 'https://s.taobao.com/search?q=',
+    jd: 'https://search.jd.com/Search?keyword=',
+    pdd: 'https://mobile.yangkeduo.com/search_result.html?search_key=',
+    douyin: 'https://www.douyin.com/search/',
+    vip: 'https://category.vip.com/search.php?keyword=',
+    suning: 'https://search.suning.com/emall/pg1-kw',
+    xhs: 'https://www.xiaohongshu.com/search_result?keyword=',
+    alibaba: 'https://s.1688.com/selloffer/offer_search.htm?keywords='
+  };
+  /* 一键套用的典型优惠（只填空位，套用后可手改） */
+  var TYPICAL = {
+    taobao: { subsidyRate: '15', subsidyCap: '500', rebateChannel: '一淘', rebateRate: '3' },
+    jd: { subsidyRate: '15', subsidyCap: '500', rebateChannel: '京东联盟', rebateRate: '1' },
+    pdd: { rebateChannel: '多多进宝', rebateRate: '2' },
+    douyin: { rebateChannel: '精选联盟', rebateRate: '1' },
+    vip: { rebateChannel: '唯享客', rebateRate: '3' },
+    suning: { rebateChannel: '苏宁推客', rebateRate: '2' }
+  };
+  var TYPICAL_LABEL = { subsidyRate: '国补', subsidyCap: '国补上限', rebateChannel: '返利渠道', rebateRate: '返利比例' };
+
+  var GRABLET = [
+    '(function(){try{',
+    'var t=function(e){return e?String(e.textContent).replace(/[^\\d.]/g,\'\'):\'\'};',
+    'var q=function(s){return document.querySelector(s)};var p=\'\';',
+    'var rule=[[/(taobao|tmall)/,\'[class*="Price--current"]\',\'[class*="priceInt"]\',\'[class*="Price--extra"]\'],[/jd\\.com/,\'[class*="p-price"]\',\'[class*="price"] .p-price\'],[/yangkeduo|pinduoduo/,\'[class*="price"]\'],[/douyin/,\'[class*="price"]\'],[/vip\\.com/,\'[class*="price"]\'],[/suning/,\'[class*="price"]\'],[/1688/,\'[class*="price"]\']];',
+    'try{for(var i=0;i<rule.length;i++){if(rule[i][0].test(location.host)){for(var j=1;j<rule[i].length&&!p;j++){p=t(q(rule[i][j]))}if(p)break}}}catch(e){}',
+    'if(!p){var all=document.querySelectorAll(\'b,strong,span,div,em\'),b=0;',
+    'for(var k=0;k<all.length;k++){var e2=all[k];if(!e2.offsetParent)continue;',
+    'if(!/price/i.test(e2.className+\' \'+e2.id))continue;',
+    'var m=String(e2.textContent).match(/[\\u00A5\\uFFE5]\\s*([1-9][\\d,]*(?:\\.\\d+)?)/);',
+    'if(m){var fs=0;try{fs=parseFloat(getComputedStyle(e2).fontSize)||0}catch(e){}if(fs>=b){b=fs;p=m[1].replace(/,/g,\'\')}}}}',
+    'if(!p){var s=String(window.getSelection?window.getSelection():\'\');var m2=s.match(/[\\u00A5\\uFFE5]?\\s*([1-9][\\d,]*(?:\\.\\d+)?)/);if(m2)p=m2[1].replace(/,/g,\'\')}',
+    'var ti=(document.title||\'\').replace(/[-\\u2013_\\uFF5C|\\u4E28].{0,14}(\\u6DD8\\u5B9D\\u7F51|\\u5929\\u732B|\\u4EAC\\u4E1C|\\u62FC\\u591A\\u591A|\\u6296\\u97F3|\\u552F\\u54C1\\u4F1A|\\u82CF\\u5B81|1688|\\u5C0F\\u7EA2\\u4E66).{0,8}$/,\'\').trim()||document.title;',
+    'var u=location.href.split(\'#\')[0];',
+    'var code=\'DJ1.\'+btoa(unescape(encodeURIComponent(JSON.stringify({t:ti,p:p,u:u})))).replace(/\\+/g,\'-\').replace(/\\//g,\'_\').replace(/=+$/,\'\');',
+    'try{navigator.clipboard&&navigator.clipboard.writeText(code)}catch(e){}',
+    'var d=document.createElement(\'div\');',
+    'd.style.cssText=\'position:fixed;z-index:2147483647;top:14px;right:14px;background:#fff;border:2px solid #f4502a;border-radius:10px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.28);font:13px/1.6 sans-serif;max-width:330px\';',
+    'd.innerHTML=\'<b style="color:#f4502a">\'+(p?\'\\u5DF2\\u6293\\u5230\\u4EF7\\u683C \\u00A5\'+p:\'\\u672A\\u8BC6\\u522B\\u4EF7\\u683C\\uFF1A\\u53EF\\u5148\\u9009\\u4E2D\\u4EF7\\u683C\\u6587\\u5B57\\u518D\\u70B9\\u4E66\\u7B7E\')+\'</b><br>\\u6293\\u4EF7\\u7801\\u5DF2\\u590D\\u5236\\uFF0C\\u56DE\\u6BD4\\u4EF7\\u7AD9\\u7C98\\u8D34\\u5373\\u53EF<br><textarea readonly style="width:100%;height:56px;margin-top:6px;font-size:11px"></textarea><div style="margin-top:6px;text-align:right"><button style="margin-right:6px">Copy</button><button>Close</button></div>\';',
+    'document.body.appendChild(d);var ta=d.querySelector(\'textarea\');ta.value=code;',
+    'var btn=d.querySelectorAll(\'button\');btn[0].onclick=function(){ta.select();try{document.execCommand(\'copy\')}catch(e){}};btn[1].onclick=function(){d.remove()};',
+    '}catch(e){alert(\'\\u6293\\u4EF7\\u5931\\u8D25\\uFF1A\'+e.message)}})();'
+  ].join('');
+
+  function decodeGrab(s) {
+    s = String(s || '').trim();
+    var m = s.match(/^DJ1\.([A-Za-z0-9\-_]+)$/);
+    if (!m) return null;
+    try {
+      var b = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b.length % 4) b += '=';
+      var o = JSON.parse(decodeURIComponent(escape(atob(b))));
+      return (o && o.u) ? o : null;
+    } catch (e) { return null; }
+  }
+
+
   /* ---------------- 存储 ---------------- */
   var Store = (function () {
     var G = window.GhSync, LS = 'qgdj_data_v1';
@@ -691,8 +750,12 @@
       if (r) { filled++; if (r.final < bestV) { bestV = r.final; bestIdx = i; } }
     });
 
+    function chipTxt(l) {
+      var pv = l.price;
+      return (pv !== '' && pv != null) ? '¥ ' + esc(pv) : '+ 填价格';
+    }
+
     var h = '<div class="grp"><div class="grp-t">商品链接<span class="gt-note">最多 ' + MAX_LINKS + ' 条 · 平台取最低</span></div>';
-    h += '<div class="lhead"><span>链接 / 商品 ID</span><span>页面价</span><span>会员价</span><span></span></div>';
     links.forEach(function (l, i) {
       var r = calc(o, l);
       var host = hostOf(l.url);
@@ -700,11 +763,10 @@
       var warn = (det && det !== o.pid) ? '<span class="lwarn">识别为 ' + esc((PMAP[det] || {}).name || det) + '</span>' : '';
       h += '<div class="lrow">' +
         '<input class="lurl" data-off="' + o.pid + '" data-l="' + i + '" data-f="url" value="' + esc(l.url) + '" placeholder="粘贴链接，或填商品 ID" autocomplete="off" spellcheck="false">' +
-        '<input inputmode="decimal" autocomplete="off" data-off="' + o.pid + '" data-l="' + i + '" data-f="price" value="' + esc(l.price) + '" placeholder="¥">' +
-        '<input inputmode="decimal" autocomplete="off" data-off="' + o.pid + '" data-l="' + i + '" data-f="memberPrice" value="' + esc(l.memberPrice) + '" placeholder="选填">' +
-        (links.length > 1 ? '<button class="del" data-dellink="' + i + '" data-off="' + o.pid + '" title="删除这条链接">×</button>' : '<span></span>') +
+        (links.length > 1 ? '<button class="del" data-dellink="' + i + '" data-off="' + o.pid + '" title="删除这条链接">×</button>' : '') +
       '</div>';
       h += '<div class="lmeta">' +
+        '<button class="price-chip' + ((l.price !== '' && l.price != null) ? '' : ' empty') + '" data-priceedit="' + o.pid + '|' + i + '" title="点击填这条链接的页面价 / 会员价">' + chipTxt(l) + '</button>' +
         (host ? '<button class="lopen" data-openurl="' + esc(l.url) + '">' + esc(host) + ' ↗</button>' : '<span class="lhost">未填链接</span>') +
         warn +
         '<span class="lprice' + (r ? (i === bestIdx && links.length > 1 && filled > 1 ? ' best' : '') : ' none') + '">' +
@@ -722,6 +784,12 @@
 
   function cardBody(o) {
     var P = PMAP[o.pid] || {}, h = '';
+
+    h += '<div class="card-tools">' +
+      (SEARCH_URL[o.pid] ? '<button class="ct-btn" data-srch="' + o.pid + '">🔍 搜同款</button>' : '') +
+      (TYPICAL[o.pid] ? '<button class="ct-btn" data-typical="' + o.pid + '">⚡ 套用典型优惠</button>' : '') +
+      '<span class="ct-note">券与红包以结算页实际为准</span>' +
+    '</div>';
 
     h += linksBlock(o);
 
@@ -851,6 +919,12 @@
       var r = calc(o, links[i] || {});
       var meta = row.nextElementSibling;
       if (!meta || !meta.classList.contains('lmeta')) return;
+      var chip = meta.querySelector('.price-chip');
+      if (chip) {
+        var pv = (links[i] || {}).price;
+        chip.textContent = (pv !== '' && pv != null) ? '¥ ' + pv : '+ 填价格';
+        chip.className = 'price-chip' + ((pv !== '' && pv != null) ? '' : ' empty');
+      }
       var sp = meta.querySelector('.lprice');
       if (sp) {
         sp.textContent = r ? '到手 ' + fmt(r.final) + (i === bestIdx && links.length > 1 && filled > 1 ? ' · 最低' : '') : '未填价格';
@@ -947,6 +1021,45 @@
     var box = $('#findRes');
     var raw = String(q || '').trim();
     if (!raw) { box.hidden = true; box.innerHTML = ''; S.active = -1; S.findItems = []; return; }
+
+    /* —— 抓价码（抓价助手复制出的 DJ1.xxx）—— */
+    var grab = decodeGrab(raw);
+    if (grab) {
+      var gplat = detectPlatform(grab.u) || 'taobao';
+      var gpname = (PMAP[gplat] || {}).name || gplat;
+      var gprice = String(grab.p || '').replace(/[^\d.]/g, '');
+      var gtitle = String(grab.t || '').trim() || '抓价商品';
+      var gshow = gtitle.length > 22 ? gtitle.slice(0, 22) + '…' : gtitle;
+      var ghits = searchProducts(gtitle);
+      if (!ghits.length) {
+        /* 标题整句搜不到时，放宽到前几个词逐级试 */
+        var parts = gtitle.split(/\s+/).filter(Boolean);
+        if (parts.length > 2) ghits = searchProducts(parts.slice(0, 2).join(' '));
+        if (!ghits.length && parts.length) ghits = searchProducts(parts[0]);
+      }
+      var gitems = [];
+      if (ghits.length && ghits[0].score >= 3) {
+        gitems.push({
+          type: 'grab_join', pid: ghits[0].p.id, plat: gplat, url: grab.u, price: gprice,
+          title: '加入商品「' + ghits[0].p.name + '」的 ' + gpname,
+          sub: gshow + (gprice ? ' · 页面价 ¥' + gprice : ' · 未抓到价格')
+        });
+      }
+      gitems.push({
+        type: 'grab_new', plat: gplat, url: grab.u, price: gprice, name: gtitle,
+        title: '新建商品「' + gshow + '」',
+        sub: gpname + (gprice ? ' · 页面价 ¥' + gprice : ' · 未抓到价格，稍后点「+ 填价格」补')
+      });
+      box.innerHTML = '<div class="fg-t">识别为抓价码 · ' + esc(gpname) + '</div>' + gitems.map(function (it, i) {
+        return '<button class="fitem" data-fi="' + i + '">' +
+          '<span class="fi-t">' + esc(it.title) + '</span>' +
+          '<span class="fi-s">' + esc(it.sub) + '</span>' +
+        '</button>';
+      }).join('');
+      box.hidden = false;
+      S.findItems = gitems; S.active = 0; paintActive();
+      return;
+    }
 
     var hits = searchProducts(raw);
     var url = isUrl(raw) ? raw : '';
@@ -1076,11 +1189,48 @@
     flash($('[data-pid="' + pid + '"]'));
   }
 
+  function applyGrab(pid, plat, url, price) {
+    var p = products().filter(function (x) { return x.id === pid; })[0];
+    if (!p) return;
+    var o = (p.offers || []).filter(function (x) { return x.pid === plat; })[0];
+    if (!o) return;
+    o.on = true;
+    var empty = (o.links || []).filter(function (l) { return !l.url; })[0];
+    if (empty) { empty.url = url; if (price) empty.price = price; }
+    else if ((o.links || []).length < MAX_LINKS) { o.links.push({ url: url, price: price || '', memberPrice: '' }); }
+    else { toast('该平台已有 ' + MAX_LINKS + ' 条链接，先删一条'); return; }
+    S.cur = pid; S.open[plat] = true;
+    saveProduct(p); renderAll();
+    $('#findInput').value = '';
+    closeFind();
+    var card = $('[data-card="' + plat + '"]');
+    if (card) {
+      if (card.scrollIntoView) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      flash(card);
+    }
+    toast('已抓入「' + (PMAP[plat] || {}).name + '」' + (price ? ' · 页面价 ¥' + price : '，点「+ 填价格」补价'));
+  }
+
   function runFindItem(it) {
     if (!it) return;
     if (it.type === 'prod') { gotoProduct(it.pid); return; }
     if (it.type === 'join') { joinLink(it.plat, it.url); return; }
     if (it.type === 'newurl') { createFromUrl(it.plat, it.url); return; }
+    if (it.type === 'grab_join') { applyGrab(it.pid, it.plat, it.url, it.price); return; }
+    if (it.type === 'grab_new') {
+      var p = blankProduct(it.name, '');
+      var o = p.offers.filter(function (x) { return x.pid === it.plat; })[0];
+      if (o) { o.on = true; o.links = [{ url: it.url, price: it.price || '', memberPrice: '' }]; }
+      Store.set(p.id, p);
+      S.cur = p.id; S.sel = ''; S.open = {}; S.open[it.plat] = true;
+      renderAll();
+      $('#findInput').value = '';
+      closeFind();
+      var card = $('[data-card="' + it.plat + '"]');
+      if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      toast('已用抓价结果新建商品' + (it.price ? '，页面价 ¥' + it.price : '，点「+ 填价格」补价'));
+      return;
+    }
     if (it.type === 'new') {
       var p = blankProduct(it.name, '');
       Store.set(p.id, p);
@@ -1115,6 +1265,39 @@
     el.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { el.hidden = true; }, 2200);
+  }
+
+  /* ---------------- 价格弹层（页面价 / 会员价） ---------------- */
+  var popState = null;
+  function openPricePop(key, anchor) {
+    var p = curProduct(); if (!p) return;
+    var parts = String(key).split('|'), pid = parts[0], li = +parts[1];
+    var o = (p.offers || []).filter(function (x) { return x.pid === pid; })[0];
+    if (!o || !o.links[li]) return;
+    popState = { pid: pid, li: li };
+    $('#popPrice').value = o.links[li].price || '';
+    $('#popMember').value = o.links[li].memberPrice || '';
+    var pop = $('#pricePop');
+    pop.hidden = false;
+    try {
+      var r = anchor.getBoundingClientRect();
+      pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
+      pop.style.left = Math.max(8, r.left + window.scrollX - 30) + 'px';
+    } catch (e) { /* jsdom 无布局 */ }
+    $('#popPrice').focus();
+  }
+  function closePricePop() {
+    if (!popState) return;
+    popState = null;
+    var pop = $('#pricePop'); if (pop) pop.hidden = true;
+    var p = curProduct();
+    if (p) { saveProduct(p); refresh(); }
+  }
+  function popOffer() {
+    if (!popState) return null;
+    var p = curProduct(); if (!p) return null;
+    var o = (p.offers || []).filter(function (x) { return x.pid === popState.pid; })[0];
+    return (o && o.links[popState.li]) ? o : null;
   }
   function flash(el) {
     if (!el) return;
@@ -1164,6 +1347,14 @@
       p2.spec = t.value; touch(p2); return;
     }
     if (t.id === 'findInput') { renderFindRes(t.value); return; }
+    if (t.id === 'popPrice' || t.id === 'popMember') {
+      var op = popOffer(); if (!op) return;
+      op.links[popState.li][t.id === 'popPrice' ? 'price' : 'memberPrice'] = t.value;
+      touch(curProduct());
+      paintLinkMeta(op);
+      refresh();
+      return;
+    }
     onFieldEdit(e);
   });
 
@@ -1173,6 +1364,11 @@
 
   document.addEventListener('keydown', function (e) {
     var t = e.target || {};
+    if (e.key === 'Escape') {
+      if (popState) { closePricePop(); return; }
+      var gm = $('#grabModal'); if (gm && !gm.hidden) { gm.setAttribute('hidden', ''); return; }
+      var sm = $('#syncModal'); if (sm && !sm.hidden) { sm.setAttribute('hidden', ''); return; }
+    }
     if (t.id === 'findInput') {
       var n = (S.findItems || []).length;
       if (e.key === 'ArrowDown') { e.preventDefault(); S.active = Math.min(n - 1, S.active + 1); paintActive(); return; }
@@ -1193,6 +1389,9 @@
 
   document.addEventListener('click', function (e) {
     var t = e.target;
+
+    /* 价格弹层：点外部关闭 */
+    if (popState && !t.closest('#pricePop') && !t.closest('[data-priceedit]')) closePricePop();
 
     var fi = t.closest('[data-fi]');
     if (fi) {
@@ -1263,6 +1462,34 @@
       return;
     }
 
+    var pc = t.closest('[data-priceedit]');
+    if (pc) { openPricePop(pc.getAttribute('data-priceedit'), pc); return; }
+
+    var sr = t.closest('[data-srch]');
+    if (sr) {
+      var spid = sr.getAttribute('data-srch');
+      var sp = curProduct();
+      var kw = encodeURIComponent((((sp && sp.name) || '').trim() + ((sp && sp.spec) ? ' ' + sp.spec : '')).trim());
+      if (SEARCH_URL[spid]) window.open(SEARCH_URL[spid] + kw, '_blank', 'noopener');
+      return;
+    }
+
+    var ty = t.closest('[data-typical]');
+    if (ty) {
+      var to = findOffer(ty.getAttribute('data-typical'));
+      if (to) {
+        var tp = TYPICAL[to.pid] || {}, filled = [];
+        Object.keys(tp).forEach(function (k) {
+          if (String(to[k] || '') === '') { to[k] = tp[k]; filled.push(TYPICAL_LABEL[k] || k); }
+        });
+        if (filled.length) {
+          saveProduct(curProduct()); renderCards(); refresh();
+          toast('已套用典型值：' + filled.join(' / ') + '，可再手改（以结算页为准）');
+        } else toast('典型值都已填过，无需套用');
+      }
+      return;
+    }
+
     var ap = t.closest('[data-addplat]');
     if (ap) {
       var o3 = findOffer(ap.getAttribute('data-addplat'));
@@ -1321,12 +1548,22 @@
     }
     if (t.closest('#btnPrint')) { window.print(); return; }
     if (t.closest('#btnSync')) { $('#syncModal').removeAttribute('hidden'); return; }
-    if (t.closest('[data-close]')) { $('#syncModal').setAttribute('hidden', ''); return; }
+    if (t.closest('#btnGrab')) { $('#grabModal').removeAttribute('hidden'); return; }
+    if (t.closest('[data-close]')) {
+      var m = t.closest('.modal');
+      if (m) m.setAttribute('hidden', '');
+      return;
+    }
   });
 
-  /* ===================================================================
-     同步
-     =================================================================== */
+  /* ---------------- 同步 ---------------- */
+  function initGrab() {
+    var a = $('#grabLink'); if (!a) return;
+    a.href = 'javascript:' + GRABLET;
+    var ta = $('#grabCode');
+    if (ta) ta.value = 'javascript:' + GRABLET;
+  }
+
   function initSync() {
     if (!window.GhSync) { $('#ghStatus').textContent = '本地存储'; return; }
     window.GhSync.init({
@@ -1358,6 +1595,7 @@
     renderAll();
     renderGuide();
     initSync();
+    initGrab();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

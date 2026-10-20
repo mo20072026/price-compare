@@ -53,27 +53,19 @@
         <p>只填页面上的数字，算价交给引擎</p>
       </div>
 
-      <div class="find">
+      <div class="find merged">
         <div class="find-box">
           <svg class="fi" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.6"/><path d="M13.2 13.2 17 17"/></svg>
           <input id="findInput" type="text" autocomplete="off" spellcheck="false"
-                 placeholder="搜商品名 / 规格 / 粘贴商品链接，模糊匹配">
+                 placeholder="搜商品 / 粘贴链接或抓价码，模糊匹配">
           <kbd class="fkbd">/</kbd>
         </div>
         <div class="find-res" id="findRes" hidden></div>
-        <p class="find-tip">填得越全越准：商品名 + 规格 + 链接一起搜，命中字段越多排得越前</p>
-      </div>
-
-      <div class="prodbar" id="productBar"></div>
-
-      <div class="prod-fields">
-        <div class="f">
-          <label for="prodName">商品</label>
-          <input id="prodName" placeholder="例：小米 15 Ultra 16+512 黑色" autocomplete="off">
-        </div>
-        <div class="f">
-          <label for="prodSpec">型号 / 规格 <span class="u">可留空</span></label>
-          <input id="prodSpec" placeholder="例：国行 512GB · 黑色" autocomplete="off">
+        <div class="prodbar" id="productBar"></div>
+        <div class="prod-inline">
+          <input id="prodName" placeholder="商品名" autocomplete="off">
+          <input id="prodSpec" placeholder="规格 · 可留空" autocomplete="off">
+          <button class="btn ghost grab-btn" id="btnGrab" title="在商品页一键抓取标题和价格">抓价助手</button>
         </div>
       </div>
 
@@ -85,7 +77,7 @@
       </div>
 
       <p class="hint-line">
-        每个平台最多挂 <b>5 条链接</b>，各自算到手价、平台取最低；优惠券与红包按平台填一次即可。
+        每平台最多 <b>5 条链接</b>，各算到手价、取最低；点链接旁的<b>价格标签</b>可填价，或用<b>抓价助手</b>自动填。
       </p>
     </aside>
 
@@ -156,8 +148,8 @@
   </section>
 
   <footer class="foot">
-    <p>本工具不抓取任何平台数据，价格与优惠由你手动填写；计算结果为规则推演，实际以平台结算页为准。</p>
-    <p class="foot-meta">全网到手价 · 本地存储 · <span id="verLine">v1.0</span></p>
+    <p>本工具不联网抓取平台数据；价格可由「抓价助手」在你的浏览器里一键抓取，优惠典型值一键套用后可改；结果为规则推演，以平台结算页为准。</p>
+    <p class="foot-meta">全网到手价 · 本地存储 · <span id="verLine">v1.2</span></p>
   </footer>
 </main>
 
@@ -218,9 +210,49 @@
   </div>
 </div>
 
+<!-- ============ 抓价助手弹窗 ============ -->
+<div class="modal" id="grabModal" hidden>
+  <div class="modal-mask" data-close="1"></div>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="抓价助手">
+    <div class="modal-h">
+      <h3>抓价助手 · 免手填</h3>
+      <button class="btn ghost xs" data-close="1">关闭</button>
+    </div>
+    <div class="modal-b">
+      <p class="muted">
+        平台没有公开接口，网页无法替你联网查价；但<b>你自己的浏览器</b>正开着商品页——
+        把下面的小书签拖到浏览器书签栏，以后在<b>淘宝 / 京东 / 拼多多等商品页</b>上点一下，
+        它就把「标题 + 价格 + 链接」打包成一条抓价码复制好，回到本站检索框粘贴即完成录入。
+      </p>
+      <ol class="grab-steps">
+        <li>把橙色按钮<b>拖到浏览器书签栏</b>（Ctrl+Shift+B 可显示书签栏）；</li>
+        <li>打开任意商品页，点书签栏里的「抓价」；</li>
+        <li>回到本站，在检索框 <code>Ctrl+V</code> 粘贴 → 选「加入当前商品」或「新建商品」。</li>
+      </ol>
+      <div class="grab-dragbox">
+        <a id="grabLink" class="grab-drag" href="#" onclick="return false">🛒 抓价（拖我到书签栏）</a>
+      </div>
+      <details class="adv">
+        <summary>拖不动？手动添加书签</summary>
+        <p class="muted tiny">新建书签，把下面整段代码粘贴到「网址」栏：</p>
+        <textarea id="grabCode" readonly spellcheck="false"></textarea>
+      </details>
+      <p class="muted tiny">
+        抓不到价格时：先在商品页<b>选中价格文字</b>再点书签即可。抓价码只含标题 / 价格 / 链接，无任何账号信息。
+      </p>
+    </div>
+  </div>
+</div>
+
 <script src="data.js"></script>
 <script src="gh-sync.js"></script>
 <script src="app.js"></script>
+<div class="price-pop" id="pricePop" hidden>
+  <div class="pp-t">这条链接的价格</div>
+  <label>页面价 ¥ <input id="popPrice" inputmode="decimal" autocomplete="off"></label>
+  <label>会员价 ¥ <input id="popMember" inputmode="decimal" autocomplete="off" placeholder="选填"></label>
+  <div class="pp-tip">价格也可由「抓价助手」自动填入</div>
+</div>
 <div class="toast" id="toast" hidden></div>
 </body>
 </html>

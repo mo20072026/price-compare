@@ -18,7 +18,8 @@ const dom = new JSDOM(html, {
     w.addEventListener('error', e => errors.push(e.message));
     w.print = () => {};
     w.confirm = () => true;
-    w.open = () => null;
+    w.__opened = [];
+    w.open = u => { w.__opened.push(u); return null; };
     w.HTMLElement.prototype.scrollIntoView = function () {};
   }
 });
@@ -114,6 +115,56 @@ setTimeout(() => {
   input(fi, '戴森');
   click(d.querySelectorAll('#findRes .fitem')[0]);
   ok(d.querySelector('#prodName').value.includes('戴森'), '点搜索结果可切回原商品');
+
+  console.log('\n— 蓝框砍掉：链接行不再有价格输入框 —');
+  ok(!d.querySelector('.lrow input[data-f="price"]'), '链接行没有内联价格输入框');
+  ok(!d.querySelector('.lhead'), '旧表头已移除');
+  const chip = d.querySelector('[data-card="taobao"] [data-priceedit="taobao|0"]');
+  ok(chip && chip.textContent.includes('¥'), '价格标签显示当前价（实际 ' + (chip && chip.textContent) + '）');
+
+  console.log('\n— 价格弹层 —');
+  click(chip);
+  ok(!d.querySelector('#pricePop').hidden, '点价格标签弹出填写面板');
+  input(d.querySelector('#popPrice'), '3999');
+  const chip2 = d.querySelector('[data-card="taobao"] [data-priceedit="taobao|0"]');
+  ok(chip2.textContent.includes('3999'), '改价后标签同步（实际 ' + chip2.textContent + '）');
+  const tbMeta0 = d.querySelector('[data-card="taobao"] .lmeta .lprice');
+  ok(!tbMeta0.textContent.includes('2,659'), '到手价随新价重算（实际 ' + tbMeta0.textContent + '）');
+  input(d.querySelector('#popPrice'), '3699');
+  d.body.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  ok(d.querySelector('#pricePop').hidden, '点外部关闭弹层');
+  ok(d.querySelector('[data-card="taobao"] .lmeta .lprice').textContent.includes('2,659'), '改回原价后到手价复原');
+
+  console.log('\n— 卡片工具行 —');
+  click(d.querySelector('[data-card="taobao"] [data-srch="taobao"]'));
+  ok(w.__opened.some(u => String(u).indexOf('s.taobao.com') >= 0), '搜同款打开平台搜索');
+  click(d.querySelector('[data-card="taobao"] [data-typical="taobao"]'));
+  ok(d.querySelector('#toast').textContent.includes('典型值'), '套用典型优惠有提示（实际：' + d.querySelector('#toast').textContent + '）');
+
+  console.log('\n— 抓价助手 —');
+  click(d.querySelector('#btnGrab'));
+  ok(!d.querySelector('#grabModal').hidden, '点按钮打开抓价助手弹窗');
+  ok((d.querySelector('#grabLink').href || '').startsWith('javascript:'), '书签链接已生成');
+  ok(d.querySelector('#grabCode').value.length > 300, '手动复制代码已生成（' + d.querySelector('#grabCode').value.length + ' 字符）');
+  d.querySelector('#grabModal [data-close="1"]').click();
+  ok(d.querySelector('#grabModal').hidden, '可关闭弹窗');
+
+  console.log('\n— 抓价码粘贴录入 —');
+  const grabObj = { t: '戴森 V12 吸尘器 官方旗舰', p: '3399', u: 'https://item.jd.com/100012043978.html' };
+  const b64 = Buffer.from(JSON.stringify(grabObj), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  input(fi, 'DJ1.' + b64);
+  items = [...d.querySelectorAll('#findRes .fitem')];
+  console.log('  抓价码动作：' + items.map(i => i.querySelector('.fi-t').textContent).join(' / '));
+  ok(items.some(i => i.textContent.includes('新建商品')), '抓价码给出「新建商品」动作');
+  ok(items.some(i => i.textContent.includes('加入商品')), '抓价码给出「加入已有商品」动作（模糊匹配标题）');
+  const newItemBtn = items.find(i => i.textContent.includes('新建商品'));
+  click(newItemBtn);
+  ok(d.querySelectorAll('.pchip').length === 4, '用抓价结果新建了商品（原 2 个 + 抓价 1 个）');
+  ok(d.querySelector('#prodName').value.includes('戴森 V12 吸尘器'), '商品名来自抓到的标题');
+  const newUrl = [...d.querySelectorAll('.lurl')].map(i => i.value).find(v => v.includes('100012043978'));
+  ok(newUrl, '链接已写入');
+  const newChip = [...d.querySelectorAll('.price-chip')].find(c => c.textContent.includes('3399'));
+  ok(newChip, '价格 ¥3399 已自动填入（不用手算手填）');
 
   console.log('\n— 攻略与运行时 —');
   ok(d.querySelectorAll('.gitem').length > 5, '攻略渲染正常');
