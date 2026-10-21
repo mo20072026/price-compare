@@ -168,10 +168,31 @@ a{color:var(--accent-d)}
 .fempty{padding:14px 10px;font-size:11.5px;color:var(--muted);text-align:center}
 
 /* 商品名 + 规格 + 抓价助手 一行 */
-.prod-inline{display:grid;grid-template-columns:1fr 132px auto;gap:6px;padding:8px 14px 0}
+.prod-inline{display:grid;grid-template-columns:1fr 118px auto auto;gap:6px;padding:8px 14px 0}
 .prod-inline input{height:30px;font-size:12px}
 .grab-btn{height:30px;font-size:11.5px;color:var(--accent-d);border-color:#f8c5b4;background:#fff8f5;font-weight:600}
 .grab-btn:hover{border-color:var(--accent-d);background:#fdeee7}
+.grab-btn.auto{color:#1a7f37;border-color:#b7e2c4;background:#f2fbf5}
+.grab-btn.auto:hover{border-color:#1a7f37;background:#e6f7ec}
+
+/* 顶栏抓价服务状态 */
+.sync.svc .dot{background:#c0c8d2}
+.sync.svc.on .dot{background:#2fbf5c;box-shadow:0 0 0 3px rgba(47,191,92,.18)}
+.sync.svc.off .dot{background:#e0603c}
+.sync.svc.on #svcText{color:#1a7f37;font-weight:600}
+
+/* 自动查价报告 */
+.auto-report{margin:10px 14px 0;border:1px solid var(--line);border-radius:10px;background:#fbfcfd;
+  font-size:11px;line-height:1.7;overflow:hidden}
+.auto-report[hidden]{display:none}
+.auto-report .ar-h{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 10px;background:#f7f9fb;border-bottom:1px solid var(--line2);font-size:10.5px;
+  font-weight:700;color:var(--ink2);letter-spacing:.3px}
+.auto-report .ar-x{border:none;background:none;font-size:13px;color:#9aa4b0;padding:0 3px;line-height:1}
+.auto-report .ar-x:hover{color:#d64545}
+.auto-report .ar-line{display:flex;gap:8px;padding:5px 10px;color:var(--muted)}
+.auto-report .ar-line b{flex:none;color:var(--ink2);font-weight:600}
+.auto-report .ar-line span{min-width:0}
 
 /* ---------------- 链接行 ---------------- */
 .lrow{display:grid;grid-template-columns:1fr 20px;gap:5px;align-items:center;margin-bottom:1px}
@@ -470,6 +491,8 @@ select{appearance:none;padding-right:20px;background-image:url("data:image/svg+x
   .rt-head span:nth-child(n+4),.rt-row .num.dim,.rt-row .num.save,.rt-row .pct{display:none}
   .prod-inline{grid-template-columns:1fr 1fr;position:relative}
   .prod-inline .grab-btn{grid-column:1/3}
+  .prod-inline .grab-btn.auto{grid-column:1/2}
+  .prod-inline #btnGrab{grid-column:2/3}
   .fgrid.g3{grid-template-columns:1fr 1fr}
 }
 

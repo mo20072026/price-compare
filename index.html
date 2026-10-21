@@ -31,6 +31,10 @@
         <span id="syncAgo"></span>
         <button class="btn ghost xs" data-gh="push" id="syncRetry" hidden>重试</button>
       </span>
+      <span class="sync svc" id="svcPill" title="本机抓价服务：输入型号后自动查各平台真实价">
+        <span class="dot" id="svcDot"></span>
+        <span id="svcText">抓价服务</span>
+      </span>
       <button class="btn ghost" id="btnImport" title="粘贴比价技能的 JSON 输出或抓价码，批量建商品">批量导入</button>
       <button class="btn ghost" id="btnSample" title="载入一份填好的示例，看清各字段怎么填">示例</button>
       <button class="btn ghost" id="btnClear" title="清空当前商品的所有报价">清空</button>
@@ -66,9 +70,12 @@
         <div class="prod-inline">
           <input id="prodName" placeholder="商品名" autocomplete="off">
           <input id="prodSpec" placeholder="规格 · 可留空" autocomplete="off">
+          <button class="btn ghost grab-btn auto" id="btnAutoGrab" title="调用本机抓价服务，自动查各平台真实价（需先启动服务）">⚡ 自动查价</button>
           <button class="btn ghost grab-btn" id="btnGrab" title="在商品页一键抓取标题和价格">抓价助手</button>
         </div>
       </div>
+
+      <div class="auto-report" id="autoReport" hidden></div>
 
       <div id="cards" class="cards"></div>
 

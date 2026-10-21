@@ -77,6 +77,9 @@
   }
 
   /* ---------------- 抓价助手（书签脚本）与平台搜索 ---------------- */
+  var SVC = 'http://127.0.0.1:8848';
+  var svcOnline = null;   /* null=未探测 true/false */
+  var svcBusy = false;
   var SEARCH_URL = {
     taobao: 'https://s.taobao.com/search?q=',
     jd: 'https://search.jd.com/Search?keyword=',
@@ -1673,6 +1676,8 @@
     if (t.closest('#btnPrint')) { window.print(); return; }
     if (t.closest('#btnSync')) { $('#syncModal').removeAttribute('hidden'); return; }
     if (t.closest('#btnGrab')) { $('#grabModal').removeAttribute('hidden'); return; }
+    if (t.closest('#btnAutoGrab')) { autoGrab(); return; }
+    if (t.closest('#arClose')) { var ar = $('#autoReport'); if (ar) { ar.hidden = true; } return; }
     if (t.closest('#btnImport')) { $('#importModal').removeAttribute('hidden'); return; }
     if (t.closest('#impNew')) { doImport('new'); return; }
     if (t.closest('#impCur')) { doImport('cur'); return; }
@@ -1682,6 +1687,90 @@
       return;
     }
   });
+
+  /* ---------------- 自动查价（本机抓价服务） ---------------- */
+  function svcPaint() {
+    var dot = $('#svcDot'), txt = $('#svcText'), pill = $('#svcPill');
+    if (!dot || !txt || !pill) return;
+    if (svcOnline === true) { txt.textContent = '抓价服务在线'; pill.className = 'sync svc on'; }
+    else if (svcOnline === false) { txt.textContent = '抓价服务离线'; pill.className = 'sync svc off'; }
+    else { txt.textContent = '抓价服务'; pill.className = 'sync svc'; }
+  }
+  function probeService(cb) {
+    if (!window.fetch) { svcOnline = false; svcPaint(); if (cb) cb(false); return; }
+    var done = false;
+    var timer = setTimeout(function () {
+      if (done) return; done = true; svcOnline = false; svcPaint(); if (cb) cb(false);
+    }, 2500);
+    try {
+      fetch(SVC + '/health', { mode: 'cors' }).then(function (r) { return r.json(); }).then(function () {
+        if (done) return; done = true; clearTimeout(timer); svcOnline = true; svcPaint(); if (cb) cb(true);
+      }).catch(function () {
+        if (done) return; done = true; clearTimeout(timer); svcOnline = false; svcPaint(); if (cb) cb(false);
+      });
+    } catch (e) { svcOnline = false; svcPaint(); if (cb) cb(false); }
+  }
+
+  function renderAutoReport(lines) {
+    var box = $('#autoReport');
+    if (!box) return;
+    if (!lines || !lines.length) { box.hidden = true; box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="ar-h">自动查价报告<button class="ar-x" id="arClose" title="关闭">×</button></div>' +
+      lines.map(function (l) {
+        return '<div class="ar-line"><b>' + esc(l.t) + '</b><span>' + esc(l.d) + '</span></div>';
+      }).join('');
+    box.hidden = false;
+  }
+
+  function autoGrab() {
+    if (svcBusy) return;
+    var p = curProduct();
+    var kw = (((p && p.name) || '').trim() + ((p && p.spec) ? ' ' + p.spec : '')).trim();
+    if (!kw) { toast('先填商品名（型号），再点自动查价'); var pn = $('#prodName'); if (pn) pn.focus(); return; }
+    if (location.protocol === 'https:') {
+      renderAutoReport([{ t: 'https 页面无法访问本机服务', d: '浏览器安全规则禁止 https 网页调用 http://127.0.0.1。请改用本地地址打开：运行「一键自动查价.bat」，或浏览器直接打开 http://localhost:8080' }]);
+      return;
+    }
+    var btn = $('#btnAutoGrab');
+    svcBusy = true; if (btn) btn.textContent = '⏳ 查询中…';
+    fetch(SVC + '/api/search?kw=' + encodeURIComponent(kw) + '&limit=8', { mode: 'cors' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { onAutoResult(kw, data); })
+      .catch(function () { onAutoResult(kw, null); })
+      .then(function () { svcBusy = false; if (btn) btn.textContent = '⚡ 自动查价'; });
+  }
+
+  function onAutoResult(kw, data) {
+    if (!data || data.error) {
+      svcOnline = false; svcPaint();
+      renderAutoReport([{ t: '抓价服务没响应', d: '在本机启动：cd C:\\Users\\DELL\\.workbuddy\\skills\\price-compare 然后 python grab_service.py（或双击「一键自动查价.bat」）' }]);
+      return;
+    }
+    svcOnline = true; svcPaint();
+    var st = data.statuses || {}, lines = [];
+    Object.keys(st).forEach(function (k) {
+      var s = st[k] || {};
+      var icon = s.status === 'ok' ? '✅' : (s.status === 'blocked' ? '🚫' : (s.status === 'empty' ? '⏸️' : '⏭️'));
+      var needCookie = s.status === 'blocked' && /Cookie|登录/.test(s.note || '');
+      lines.push({
+        t: icon + ' ' + k + (s.status === 'ok' ? ' · ' + s.count + ' 条真实价' : ' · ' + s.status),
+        d: (s.note || '') + (needCookie ? '（去服务窗口看配 Cookie 的方法）' : '')
+      });
+    });
+    var items = parseImport(JSON.stringify(data));
+    if (!items.length) {
+      renderAutoReport(lines.concat([{ t: '没有可导入的结果', d: '换关键词，或按上面提示给平台配登录 Cookie' }]));
+      return;
+    }
+    var p = curProduct();
+    var nk = norm(kw).toLowerCase(), np = norm((p && p.name) || '').toLowerCase();
+    var same = !!(np && nk && (np.indexOf(nk) >= 0 || nk.indexOf(np) >= 0));
+    var ta = $('#impText');
+    if (ta) ta.value = JSON.stringify(data);
+    doImport(same ? 'cur' : 'new');
+    lines.push({ t: '已导入 ' + items.length + ' 条', d: '价格是平台售价；券/红包/返利接着由本站叠算，点「⚡套用典型优惠」可一键补常见优惠' });
+    renderAutoReport(lines);
+  }
 
   /* ---------------- 同步 ---------------- */
   function initGrab() {
@@ -1723,6 +1812,9 @@
     renderGuide();
     initSync();
     initGrab();
+    svcPaint();
+    probeService();
+    setInterval(function () { if (svcOnline !== true) probeService(); }, 30000);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

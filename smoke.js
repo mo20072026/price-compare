@@ -21,6 +21,24 @@ const dom = new JSDOM(html, {
     w.__opened = [];
     w.open = u => { w.__opened.push(u); return null; };
     w.HTMLElement.prototype.scrollIntoView = function () {};
+    /* mock 本机抓价服务（真实环境由 grab_service.py 提供） */
+    w.__svcCalls = [];
+    w.fetch = (url) => {
+      const u = String(url);
+      w.__svcCalls.push(u);
+      const body = u.indexOf('/health') >= 0
+        ? { ok: true, cookie_status: { jd: false, taobao: false } }
+        : {
+            keyword: '无线鼠标',
+            results: { '苏宁易购': [{ title: '罗技(Logitech)M330 无线鼠标 静音版', price: 129, url: 'https://product.suning.com/0000000000/12449990001.html' }] },
+            statuses: {
+              '苏宁易购': { status: 'ok', count: 1, note: '1 条商品，1 条取到真实价格' },
+              '京东': { status: 'blocked', count: 0, note: '京东风控页（未登录），需 Cookie' },
+              '淘宝': { status: 'blocked', count: 0, note: 'RGV587 风控，需 Cookie' }
+            }
+          };
+      return Promise.resolve({ json: () => Promise.resolve(body) });
+    };
   }
 });
 const w = dom.window, d = w.document;
@@ -35,7 +53,7 @@ if (d.readyState === 'loading') d.dispatchEvent(new w.Event('DOMContentLoaded'))
 const input = (el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
 const click = el => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
 
-setTimeout(() => {
+setTimeout(async () => {
   console.log('\n— 算价（多链接模型）—');
   const rows = [...d.querySelectorAll('.rt-row')];
   const prices = rows.map(r => r.querySelector('.num.strong').textContent);
@@ -204,6 +222,22 @@ setTimeout(() => {
   input(d.querySelector('#impText'), '¥199 测试用普通行商品 https://item.jd.com/999888.html');
   click(d.querySelector('#impNew'));
   ok(d.querySelector('#prodName').value.includes('测试用普通行商品'), '普通文本行「¥价格 标题 链接」也能导入');
+
+  console.log('\n— 自动查价（本机抓价服务 mock）—');
+  const chips0 = d.querySelectorAll('.pchip').length;
+  input(d.querySelector('#prodName'), '无线鼠标');
+  await new Promise(r => setTimeout(r, 120));
+  click(d.querySelector('#btnAutoGrab'));
+  await new Promise(r => setTimeout(r, 250));
+  ok(w.__svcCalls.some(u => u.indexOf('/api/search') >= 0 && u.indexOf(encodeURIComponent('无线鼠标')) >= 0), '调用了 /api/search 且带上商品名');
+  ok(d.querySelector('#svcPill').className.includes('on'), '服务状态显示在线');
+  const ar = d.querySelector('#autoReport');
+  ok(!ar.hidden && ar.textContent.includes('自动查价报告'), '显示自动查价报告');
+  ok(ar.textContent.includes('1 条真实价'), '报告显示苏宁真实价');
+  ok(ar.textContent.includes('blocked'), '报告如实显示京东/淘宝被拦截（不编造）');
+  ok(d.querySelector('#prodName').value === '无线鼠标', '型号即当前商品，结果并入当前商品');
+  ok([...d.querySelectorAll('.lurl')].some(i => i.value.includes('12449990001')), '抓到的链接自动填入当前商品');
+  ok([...d.querySelectorAll('.price-chip')].some(c => c.textContent.includes('129')), '真实价 129 自动填入');
 
   console.log('\n— 攻略与运行时 —');
   ok(d.querySelectorAll('.gitem').length > 5, '攻略渲染正常');
